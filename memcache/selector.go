@@ -78,6 +78,9 @@ func (ss *ServerList) PickServer(key string) (net.Addr, error) {
     if len(ss.addrs) == 0 {
         return nil, ErrNoServers
     }
+    if len(ss.addrs) == 1 {
+        return ss.addrs[0], nil
+    }
     // TODO-GO: remove this copy
     cs := crc32.ChecksumIEEE([]byte(key))
     return ss.addrs[cs%uint32(len(ss.addrs))], nil
