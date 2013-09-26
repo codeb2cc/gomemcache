@@ -161,4 +161,14 @@ func testWithClient(t *testing.T, c *Client) {
         t.Fatalf("increment non-number: want client error, got %v", err)
     }
 
+    // Stats
+    stats, err := c.Stats()
+    checkErr(err, "stats: %v", err)
+    addrs, err := c.selector.GetServers()
+    for _, addr := range addrs {
+        _, ok := stats[addr]
+        if !ok {
+            t.Fatalf("failed to stats %s", addr)
+        }
+    }
 }

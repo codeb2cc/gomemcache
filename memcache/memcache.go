@@ -591,3 +591,65 @@ func (c *Client) incrDecr(verb, key string, delta uint64) (uint64, error) {
     })
     return val, err
 }
+
+func (c *Client) statsFromAddr(addr net.Addr, keyMap map[string][]byte) error {
+    return c.withAddrRw(addr, func(rw *bufio.ReadWriter) error {
+        if _, err := fmt.Fprintf(rw, "stats\r\n"); err != nil {
+            return err
+        }
+        if err := rw.Flush() ; err != nil {
+            return err
+        }
+        if err := parseStatsResponse(rw.Reader, keyMap); err != nil {
+            return err
+        }
+        return nil
+    })
+}
+
+func parseStatsResponse(r *bufio.Reader, keyMap map[string][]byte) error {
+    pattern := "STAT %s %s\r\n"
+    for {
+        line, err := r.ReadSlice('\n')
+        if err != nil {
+            return err
+        }
+        if bytes.Equal(line, resultEnd) {
+            return nil
+        }
+        var key string
+        var value []byte
+        n, err := fmt.Sscanf(string(line), pattern, &key, &value)
+        if err != nil || n != 2 {
+            return fmt.Errorf("memcache: unexpected line in stats response: %q", line)
+        }
+        keyMap[key] = value
+    }
+    panic("unreached")
+}
+
+// Retrieve servers' general-purpose statistics and settings.
+func (c *Client) Stats() (map[net.Addr]map[string][]byte, error) {
+    addrs, err := c.selector.GetServers()
+    if err != nil {
+        return nil, err
+    }
+
+    addrMap := make(map[net.Addr]map[string][]byte)
+
+    ch := make(chan error, buffered)
+    for _, addr := range addrs {
+        addrMap[addr] = make(map[string][]byte)
+        go func(addr net.Addr, keyMap map[string][]byte) {
+            ch <- c.statsFromAddr(addr, keyMap)
+        }(addr, addrMap[addr])
+    }
+
+    for _ = range addrs {
+        if ge := <-ch; ge != nil {
+            err = ge
+        }
+    }
+
+    return addrMap, err
+}
