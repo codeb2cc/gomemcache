@@ -162,13 +162,9 @@ func testWithClient(t *testing.T, c *Client) {
     }
 
     // Stats
-    stats, err := c.Stats()
-    checkErr(err, "stats: %v", err)
     addrs, err := c.selector.GetServers()
     for _, addr := range addrs {
-        _, ok := stats[addr]
-        if !ok {
-            t.Fatalf("failed to stats %s", addr)
-        }
+        _, err := c.Stats(addr)
+        checkErr(err, "failed to stats %s: %v", addr, err)
     }
 }

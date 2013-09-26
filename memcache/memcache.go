@@ -629,27 +629,11 @@ func parseStatsResponse(r *bufio.Reader, keyMap map[string][]byte) error {
 }
 
 // Retrieve servers' general-purpose statistics and settings.
-func (c *Client) Stats() (map[net.Addr]map[string][]byte, error) {
-    addrs, err := c.selector.GetServers()
+func (c *Client) Stats(addr net.Addr) (map[string][]byte, error) {
+    keyMap := make(map[string][]byte)
+    err := c.statsFromAddr(addr, keyMap)
     if err != nil {
         return nil, err
     }
-
-    addrMap := make(map[net.Addr]map[string][]byte)
-
-    ch := make(chan error, buffered)
-    for _, addr := range addrs {
-        addrMap[addr] = make(map[string][]byte)
-        go func(addr net.Addr, keyMap map[string][]byte) {
-            ch <- c.statsFromAddr(addr, keyMap)
-        }(addr, addrMap[addr])
-    }
-
-    for _ = range addrs {
-        if ge := <-ch; ge != nil {
-            err = ge
-        }
-    }
-
-    return addrMap, err
+    return keyMap, err
 }
