@@ -17,10 +17,10 @@ limitations under the License.
 package memcache
 
 import (
-	"hash/crc32"
-	"net"
-	"strings"
-	"sync"
+    "hash/crc32"
+    "net"
+    "strings"
+    "sync"
 )
 
 // ServerSelector is the interface that selects a memcache server
@@ -28,15 +28,15 @@ import (
 //
 // All ServerSelector implementations must be threadsafe.
 type ServerSelector interface {
-	// PickServer returns the server address that a given item
-	// should be shared onto.
-	PickServer(key string) (net.Addr, error)
+    // PickServer returns the server address that a given item
+    // should be shared onto.
+    PickServer(key string) (net.Addr, error)
 }
 
 // ServerList is a simple ServerSelector. Its zero value is usable.
 type ServerList struct {
-	lk    sync.RWMutex
-	addrs []net.Addr
+    lk    sync.RWMutex
+    addrs []net.Addr
 }
 
 // SetServers changes a ServerList's set of servers at runtime and is
@@ -49,36 +49,36 @@ type ServerList struct {
 // resolve. No attempt is made to connect to the server. If any error
 // is returned, no changes are made to the ServerList.
 func (ss *ServerList) SetServers(servers ...string) error {
-	naddr := make([]net.Addr, len(servers))
-	for i, server := range servers {
-		if strings.Contains(server, "/") {
-			addr, err := net.ResolveUnixAddr("unix", server)
-			if err != nil {
-				return err
-			}
-			naddr[i] = addr
-		} else {
-			tcpaddr, err := net.ResolveTCPAddr("tcp", server)
-			if err != nil {
-				return err
-			}
-			naddr[i] = tcpaddr
-		}
-	}
+    naddr := make([]net.Addr, len(servers))
+    for i, server := range servers {
+        if strings.Contains(server, "/") {
+            addr, err := net.ResolveUnixAddr("unix", server)
+            if err != nil {
+                return err
+            }
+            naddr[i] = addr
+        } else {
+            tcpaddr, err := net.ResolveTCPAddr("tcp", server)
+            if err != nil {
+                return err
+            }
+            naddr[i] = tcpaddr
+        }
+    }
 
-	ss.lk.Lock()
-	defer ss.lk.Unlock()
-	ss.addrs = naddr
-	return nil
+    ss.lk.Lock()
+    defer ss.lk.Unlock()
+    ss.addrs = naddr
+    return nil
 }
 
 func (ss *ServerList) PickServer(key string) (net.Addr, error) {
-	ss.lk.RLock()
-	defer ss.lk.RUnlock()
-	if len(ss.addrs) == 0 {
-		return nil, ErrNoServers
-	}
-	// TODO-GO: remove this copy
-	cs := crc32.ChecksumIEEE([]byte(key))
-	return ss.addrs[cs%uint32(len(ss.addrs))], nil
+    ss.lk.RLock()
+    defer ss.lk.RUnlock()
+    if len(ss.addrs) == 0 {
+        return nil, ErrNoServers
+    }
+    // TODO-GO: remove this copy
+    cs := crc32.ChecksumIEEE([]byte(key))
+    return ss.addrs[cs%uint32(len(ss.addrs))], nil
 }
