@@ -7,24 +7,24 @@ This is a memcache client library for the Go programming language
 
 ### Using *go get*
 
-    $ go get github.com/bradfitz/gomemcache/memcache
+    $ go get github.com/codeb2cc/gomemcache/memcache
 
 After this command *gomemcache* is ready to use. Its source will be in:
 
-    $GOROOT/src/pkg/github.com/bradfitz/gomemcache/memcache
+    $GOPATH/src/pkg/github.com/codeb2cc/gomemcache/memcache
 
 You can use `go get -u -a` for update all installed packages.
 
 ### Using *git clone* command:
 
-    $ git clone git://github.com/bradfitz/gomemcache
+    $ git clone git://github.com/codeb2cc/gomemcache
     $ cd gomemcache/memcache
     $ make install
 
 ## Example
 
     import (
-            "github.com/bradfitz/gomemcache/memcache"
+            "github.com/codeb2cc/gomemcache/memcache"
     )
 
     func main() {
@@ -37,9 +37,5 @@ You can use `go get -u -a` for update all installed packages.
 
 ## Full docs, see:
 
-See http://gopkgdoc.appspot.com/pkg/github.com/bradfitz/gomemcache/memcache
-
-Or run:
-
-    $ godoc github.com/bradfitz/gomemcache/memcache
+    $ godoc github.com/codeb2cc/gomemcache/memcache
 
