@@ -178,7 +178,17 @@ func testWithClient(t *testing.T, c *Client) {
     // Stats settings
     for _, addr := range addrs {
         settings, err := c.StatsSettings(addr)
-        checkErr(err, "failed to stats %s: %v", addr, err)
+        checkErr(err, "failed to stats settings %s: %v", addr, err)
         dumpMap(settings)
+    }
+
+    // Stats items
+    for _, addr := range addrs {
+        slabItems, err := c.StatsItems(addr)
+        checkErr(err, "failed to stats items %s: %v", addr, err)
+        for index, keyMap := range slabItems {
+            t.Logf("Slab %d: \n", index)
+            dumpMap(keyMap)
+        }
     }
 }

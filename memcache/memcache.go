@@ -661,3 +661,45 @@ func (c *Client) StatsSettings(addr net.Addr) (map[string][]byte, error) {
     return keyMap, err
 }
 
+func parseStatsItemsResponse(r *bufio.Reader, slabMap map[int]map[string][]byte) error {
+    pattern := "STAT items:%d:%s %s\r\n"
+    for {
+        line, err := r.ReadSlice('\n')
+        if err != nil {
+            return err
+        }
+        if bytes.Equal(line, resultEnd) {
+            return nil
+        }
+        var slabIndex int
+        var key string
+        var value []byte
+        n, err := fmt.Sscanf(string(line), pattern, &slabIndex, &key, &value)
+        if err != nil || n != 3 {
+            return fmt.Errorf("memcache: unexpected line in stats items response: %q", line)
+        }
+
+        _, ok := slabMap[slabIndex]
+        if !ok {
+            slabMap[slabIndex] = make(map[string][]byte)
+        }
+        slabMap[slabIndex][key] = value
+    }
+    panic("unreached")
+}
+
+func (c *Client) StatsItems(addr net.Addr) (map[int]map[string][]byte, error) {
+    slabMap := make(map[int]map[string][]byte)
+    parseRespone := func(r *bufio.Reader) error {
+        if err := parseStatsItemsResponse(r, slabMap); err != nil {
+            return err
+        }
+        return nil
+    }
+
+    err := c.statsFromAddr("items", addr, parseRespone)
+    if err != nil {
+        return nil, err
+    }
+    return slabMap, err
+}
