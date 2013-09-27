@@ -629,7 +629,7 @@ func parseStatsResponse(r *bufio.Reader, keyMap map[string][]byte) error {
     panic("unreached")
 }
 
-// Retrieve servers' general-purpose statistics and settings.
+// Retrieve general-purpose statistics and settings.
 func (c *Client) Stats(addr net.Addr) (map[string][]byte, error) {
     keyMap := make(map[string][]byte)
     parseRespone := func(r *bufio.Reader) error {
@@ -646,6 +646,7 @@ func (c *Client) Stats(addr net.Addr) (map[string][]byte, error) {
     return keyMap, err
 }
 
+// Retrieve settings details of memcached.
 func (c *Client) StatsSettings(addr net.Addr) (map[string][]byte, error) {
     keyMap := make(map[string][]byte)
     parseRespone := func(r *bufio.Reader) error {
@@ -689,6 +690,7 @@ func parseStatsItemsResponse(r *bufio.Reader, slabMap map[int]map[string][]byte)
     panic("unreached")
 }
 
+// Retrieve information about item storage per slab class.
 func (c *Client) StatsItems(addr net.Addr) (map[int]map[string][]byte, error) {
     slabMap := make(map[int]map[string][]byte)
     parseRespone := func(r *bufio.Reader) error {
@@ -738,6 +740,7 @@ func parseStatsSlabsResponse(r *bufio.Reader, slabMap map[int]map[string][]byte)
     panic("unreached")
 }
 
+// Retrieve slabs information.
 func (c *Client) StatsSlabs(addr net.Addr) (map[int]map[string][]byte, error) {
     slabMap := make(map[int]map[string][]byte)
     parseRespone := func(r *bufio.Reader) error {
