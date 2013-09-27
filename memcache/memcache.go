@@ -99,6 +99,7 @@ func legalKey(key string) bool {
 var (
     crlf            = []byte("\r\n")
     space           = []byte(" ")
+    colon           = []byte(":")
     resultStored    = []byte("STORED\r\n")
     resultNotStored = []byte("NOT_STORED\r\n")
     resultExists    = []byte("EXISTS\r\n")
@@ -698,6 +699,55 @@ func (c *Client) StatsItems(addr net.Addr) (map[int]map[string][]byte, error) {
     }
 
     err := c.statsFromAddr("items", addr, parseRespone)
+    if err != nil {
+        return nil, err
+    }
+    return slabMap, err
+}
+
+func parseStatsSlabsResponse(r *bufio.Reader, slabMap map[int]map[string][]byte) error {
+    pattern := "STAT %d:%s %s\r\n"
+    for {
+        line, err := r.ReadSlice('\n')
+        if err != nil {
+            return err
+        }
+        if bytes.Equal(line, resultEnd) {
+            return nil
+        }
+        if bytes.Count(line, colon) == 0 {
+            // Ignore pattern "STAT %s %s\r\n"
+            continue
+        }
+
+        var slabIndex int
+        var key string
+        var value []byte
+        n, err := fmt.Sscanf(string(line), pattern, &slabIndex, &key, &value)
+
+        if err != nil || n != 3 {
+            return fmt.Errorf("memcache: unexpected line in stats slabs response: %q", line)
+        }
+
+        _, ok := slabMap[slabIndex]
+        if !ok {
+            slabMap[slabIndex] = make(map[string][]byte)
+        }
+        slabMap[slabIndex][key] = value
+    }
+    panic("unreached")
+}
+
+func (c *Client) StatsSlabs(addr net.Addr) (map[int]map[string][]byte, error) {
+    slabMap := make(map[int]map[string][]byte)
+    parseRespone := func(r *bufio.Reader) error {
+        if err := parseStatsSlabsResponse(r, slabMap); err != nil {
+            return err
+        }
+        return nil
+    }
+
+    err := c.statsFromAddr("slabs", addr, parseRespone)
     if err != nil {
         return nil, err
     }

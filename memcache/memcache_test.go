@@ -191,4 +191,15 @@ func testWithClient(t *testing.T, c *Client) {
             dumpMap(keyMap)
         }
     }
+
+    // Stats slabs
+    for _, addr := range addrs {
+        slabStats, err := c.StatsSlabs(addr)
+        checkErr(err, "failed to stats slabs %s: %v", addr, err)
+        for index, keyMap := range slabStats {
+            t.Logf("Slab %d: \n", index)
+            dumpMap(keyMap)
+        }
+    }
+
 }
