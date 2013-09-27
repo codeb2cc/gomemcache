@@ -592,9 +592,9 @@ func (c *Client) incrDecr(verb, key string, delta uint64) (uint64, error) {
     return val, err
 }
 
-func (c *Client) statsFromAddr(addr net.Addr, keyMap map[string][]byte) error {
+func (c *Client) statsFromAddr(argument string, addr net.Addr, keyMap map[string][]byte) error {
     return c.withAddrRw(addr, func(rw *bufio.ReadWriter) error {
-        if _, err := fmt.Fprintf(rw, "stats\r\n"); err != nil {
+        if _, err := fmt.Fprintf(rw, "stats %s\r\n", argument); err != nil {
             return err
         }
         if err := rw.Flush() ; err != nil {
@@ -631,7 +631,16 @@ func parseStatsResponse(r *bufio.Reader, keyMap map[string][]byte) error {
 // Retrieve servers' general-purpose statistics and settings.
 func (c *Client) Stats(addr net.Addr) (map[string][]byte, error) {
     keyMap := make(map[string][]byte)
-    err := c.statsFromAddr(addr, keyMap)
+    err := c.statsFromAddr("", addr, keyMap)
+    if err != nil {
+        return nil, err
+    }
+    return keyMap, err
+}
+
+func (c *Client) StatsSettings(addr net.Addr) (map[string][]byte, error) {
+    keyMap := make(map[string][]byte)
+    err := c.statsFromAddr("settings", addr, keyMap)
     if err != nil {
         return nil, err
     }

@@ -82,6 +82,12 @@ func testWithClient(t *testing.T, c *Client) {
         }
     }
 
+    dumpMap := func(keyMap map[string][]byte) {
+        for key, value := range keyMap {
+            t.Logf("%v: %v", key, string(value))
+        }
+    }
+
     // Set
     foo := &Item{Key: "foo", Value: []byte("fooval"), Flags: 123}
     err := c.Set(foo)
@@ -161,10 +167,18 @@ func testWithClient(t *testing.T, c *Client) {
         t.Fatalf("increment non-number: want client error, got %v", err)
     }
 
-    // Stats
     addrs, err := c.selector.GetServers()
+    // Stats
     for _, addr := range addrs {
-        _, err := c.Stats(addr)
+        stats, err := c.Stats(addr)
         checkErr(err, "failed to stats %s: %v", addr, err)
+        dumpMap(stats)
+    }
+
+    // Stats settings
+    for _, addr := range addrs {
+        settings, err := c.StatsSettings(addr)
+        checkErr(err, "failed to stats %s: %v", addr, err)
+        dumpMap(settings)
     }
 }
