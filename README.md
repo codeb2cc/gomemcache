@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/codeb2cc/gomemcache.png)](https://travis-ci.org/codeb2cc/gomemcache)
+
 ## About
 
 This is a memcache client library for the Go programming language
