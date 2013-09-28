@@ -22,6 +22,7 @@ import (
     "net"
     "os"
     "os/exec"
+    "bytes"
     "strings"
     "testing"
     "time"
@@ -83,12 +84,6 @@ func testWithClient(t *testing.T, c *Client) {
         }
     }
 
-    dumpMap := func(keyMap map[string][]byte) {
-        for key, value := range keyMap {
-            t.Logf("%v: %v", key, string(value))
-        }
-    }
-
     // Set
     foo := &Item{Key: "foo", Value: []byte("fooval"), Flags: 123}
     err := c.Set(foo)
@@ -116,6 +111,11 @@ func testWithClient(t *testing.T, c *Client) {
     if err := c.Add(bar); err != ErrNotStored {
         t.Fatalf("second add(foo) want ErrNotStored, got %v", err)
     }
+
+    // Set bigger value
+    foobar := &Item{Key: "foobar", Value: bytes.Repeat([]byte("foobar"), 1000)}
+    err = c.Set(foobar)
+    checkErr(err, "bigger set(foobar): %v", err)
 
     // GetMulti
     m, err := c.GetMulti([]string{"foo", "bar"})
@@ -191,21 +191,29 @@ func testWithClient(t *testing.T, c *Client) {
 
     // Stats items
     for _, addr := range addrs {
-        slabItems, err := c.StatsItems(addr)
-        checkErr(err, "failed to stats items %s: %v", addr, err)
-        for index, keyMap := range slabItems {
-            t.Logf("Slab %d: \n", index)
-            dumpMap(keyMap)
+        itemStatsList, err := c.StatsItems(addr)
+        if err != nil {
+            t.Fatalf("failed to stats items %s: %v", addr, err)
+        } else {
+            for index, itemStats := range itemStatsList {
+                if jsonStr, err := json.Marshal(itemStats); err == nil {
+                    t.Logf("Slab %d: %s\n", index, jsonStr)
+                }
+            }
         }
     }
 
     // Stats slabs
     for _, addr := range addrs {
-        slabStats, err := c.StatsSlabs(addr)
-        checkErr(err, "failed to stats slabs %s: %v", addr, err)
-        for index, keyMap := range slabStats {
-            t.Logf("Slab %d: \n", index)
-            dumpMap(keyMap)
+        slabStatsList, err := c.StatsSlabs(addr)
+        if err != nil {
+            t.Fatalf("failed to stats slabs %s: %v", addr, err)
+        } else {
+            for index, slabStats := range slabStatsList {
+                if jsonStr, err := json.Marshal(slabStats); err == nil {
+                    t.Logf("Slab %d: %s\n", index, jsonStr)
+                }
+            }
         }
     }
 

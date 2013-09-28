@@ -329,6 +329,73 @@ func settingsStatsFromMap(keyMap map[string][]byte) (*SettingsStats, error) {
     return settingsStats, nil
 }
 
+// ItemStats is the struct type to represent information about item storage in
+// slab class.
+type ItemStats struct {
+    Number uint64
+    Age uint64
+    Evicted uint64
+    EvictedNonzero uint64
+    EvictedTime uint64
+    Outofmemory uint64
+    Tailrepairs uint64
+    Reclaimed uint64
+    ExpiredUnfetched uint64
+    EvictedUnfetched uint64
+}
+
+func itemStatsFromMap(keyMap map[string][]byte) (*ItemStats, error) {
+    itemStats := &ItemStats{}
+    reflectValue := reflect.ValueOf(itemStats).Elem()
+    for key, value := range keyMap {
+        reflectField := reflectValue.FieldByName(snake2Camel(key))
+        switch reflectField.Kind() {
+        case reflect.Uint64:
+            if i, err := strconv.ParseUint(string(value), 10, 64); err == nil {
+                reflectField.SetUint(i)
+            }
+        }
+    }
+    return itemStats, nil
+}
+
+// SlabStats is the struct type to represent information about the slab class.
+type SlabStats struct {
+    ChunkSize uint64
+    ChunksPerPage uint64
+    TotalPages uint64
+    TotalChunks uint64
+    GetHits uint64
+    CmdSet uint64
+    DeleteHits uint64
+    IncrHits uint64
+    DecrHits uint64
+    CasHits uint64
+    CasBadval uint64
+    TouchHits uint64
+    UsedChunks uint64
+    FreeChunks uint64
+    FreeChunksEnd uint64
+    MemRequested uint64
+    ActiveSlabs uint64
+    TotalMalloced uint64
+}
+
+func slabStatsFromMap(keyMap map[string][]byte) (*SlabStats, error) {
+    slabStats := &SlabStats{}
+    reflectValue := reflect.ValueOf(slabStats).Elem()
+    for key, value := range keyMap {
+        reflectField := reflectValue.FieldByName(snake2Camel(key))
+        switch reflectField.Kind() {
+        case reflect.Uint64:
+            if i, err := strconv.ParseUint(string(value), 10, 64); err == nil {
+                reflectField.SetUint(i)
+            }
+        }
+    }
+    return slabStats, nil
+}
+
 // conn is a connection to a server.
 type conn struct {
     nc   net.Conn
@@ -861,7 +928,7 @@ func parseStatsItemsResponse(r *bufio.Reader, slabMap map[int]map[string][]byte)
 }
 
 // Retrieve information about item storage per slab class.
-func (c *Client) StatsItems(addr net.Addr) (map[int]map[string][]byte, error) {
+func (c *Client) StatsItems(addr net.Addr) (map[int]ItemStats, error) {
     slabMap := make(map[int]map[string][]byte)
     parseRespone := func(r *bufio.Reader) error {
         if err := parseStatsItemsResponse(r, slabMap); err != nil {
@@ -874,7 +941,15 @@ func (c *Client) StatsItems(addr net.Addr) (map[int]map[string][]byte, error) {
     if err != nil {
         return nil, err
     }
-    return slabMap, err
+
+    itemStatsList := make(map[int]ItemStats)
+    for index, keyMap := range slabMap {
+        itemStats, err := itemStatsFromMap(keyMap)
+        if err == nil {
+            itemStatsList[index] = *itemStats
+        }
+    }
+    return itemStatsList, nil
 }
 
 func parseStatsSlabsResponse(r *bufio.Reader, slabMap map[int]map[string][]byte) error {
@@ -911,7 +986,7 @@ func parseStatsSlabsResponse(r *bufio.Reader, slabMap map[int]map[string][]byte)
 }
 
 // Retrieve slabs information.
-func (c *Client) StatsSlabs(addr net.Addr) (map[int]map[string][]byte, error) {
+func (c *Client) StatsSlabs(addr net.Addr) (map[int]SlabStats, error) {
     slabMap := make(map[int]map[string][]byte)
     parseRespone := func(r *bufio.Reader) error {
         if err := parseStatsSlabsResponse(r, slabMap); err != nil {
@@ -924,5 +999,13 @@ func (c *Client) StatsSlabs(addr net.Addr) (map[int]map[string][]byte, error) {
     if err != nil {
         return nil, err
     }
-    return slabMap, err
+
+    slabStatsList := make(map[int]SlabStats)
+    for index, keyMap := range slabMap {
+        slabStats, err := slabStatsFromMap(keyMap)
+        if err == nil {
+            slabStatsList[index] = *slabStats
+        }
+    }
+    return slabStatsList, nil
 }
