@@ -252,6 +252,83 @@ func generalStatsFromMap(keyMap map[string][]byte) (*GeneralStats, error) {
     return generalStats, nil
 }
 
+// SettingsStats is the struct type to represent settings of memcached.
+// https://github.com/memcached/memcached/blob/master/doc/protocol.txt#L522
+// Some fields(evictions, detail_enabled, cas_enabled, auth_enabled_sasl,
+// maxconns_fast, slab_reassign) are type of string on/off/yes/no in the
+// protocol or implement. For simplicity, use bool type to store those fields.
+type SettingsStats struct {
+    Maxbytes uint64
+    Maxconns int32
+    Tcpport int32
+    Udpport int32
+    Inter string
+    Verbosity int32
+    Oldest uint32
+    Evictions bool
+    DomainSocket string
+    Umask int32    // Oct
+    GrowthFactor float64
+    ChunkSize int32
+    NumThreads int32
+    StatKeyPrefix byte
+    DetailEnabled bool
+    TcpBacklog int32
+    AuthEnabledSasl bool
+    ItemSizeMax uint64
+    MaxconnsFast bool
+    HashpowerInit int32
+    SlabReassign bool
+    SlabAutomove bool
+}
+
+func settingsStatsFromMap(keyMap map[string][]byte) (*SettingsStats, error) {
+    settingsStats := &SettingsStats{}
+    reflectValue := reflect.ValueOf(settingsStats).Elem()
+    for key, value := range keyMap {
+        reflectField := reflectValue.FieldByName(snake2Camel(key))
+        switch reflectField.Kind() {
+        case reflect.Uint8:
+            // Type of byte
+            reflectField.SetUint(uint64(value[0]))
+        case reflect.Uint32:
+            if i, err := strconv.ParseUint(string(value), 10, 32); err == nil {
+                reflectField.SetUint(i)
+            }
+        case reflect.Uint64:
+            if i, err := strconv.ParseUint(string(value), 10, 64); err == nil {
+                reflectField.SetUint(i)
+            }
+        case reflect.Int32:
+            if i, err := strconv.ParseInt(string(value), 10, 32); err == nil {
+                reflectField.SetInt(i)
+            }
+        case reflect.Float64:
+            if i, err := strconv.ParseFloat(string(value), 64); err == nil {
+                reflectField.SetFloat(i)
+            }
+        case reflect.Bool:
+            switch string(value) {
+            case "yes", "on":
+                reflectField.SetBool(true)
+            case "no", "off":
+                reflectField.SetBool(false)
+            default:
+                if i, err := strconv.ParseBool(string(value)); err == nil {
+                    reflectField.SetBool(i)
+                }
+            }
+        case reflect.String:
+            if bytes.Equal(value, []byte("NULL")) {
+                reflectField.SetString("")
+            } else {
+                reflectField.SetString(string(value))
+            }
+        }
+    }
+    return settingsStats, nil
+}
+
 // conn is a connection to a server.
 type conn struct {
     nc   net.Conn
@@ -739,7 +816,7 @@ func (c *Client) Stats(addr net.Addr) (*GeneralStats, error) {
 }
 
 // Retrieve settings details of memcached.
-func (c *Client) StatsSettings(addr net.Addr) (map[string][]byte, error) {
+func (c *Client) StatsSettings(addr net.Addr) (*SettingsStats, error) {
     keyMap := make(map[string][]byte)
     parseRespone := func(r *bufio.Reader) error {
         if err := parseStatsResponse(r, keyMap); err != nil {
@@ -752,7 +829,8 @@ func (c *Client) StatsSettings(addr net.Addr) (map[string][]byte, error) {
     if err != nil {
         return nil, err
     }
-    return keyMap, err
+
+    return settingsStatsFromMap(keyMap)
 }
 
 func parseStatsItemsResponse(r *bufio.Reader, slabMap map[int]map[string][]byte) error {

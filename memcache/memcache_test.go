@@ -182,8 +182,11 @@ func testWithClient(t *testing.T, c *Client) {
     // Stats settings
     for _, addr := range addrs {
         settings, err := c.StatsSettings(addr)
-        checkErr(err, "failed to stats settings %s: %v", addr, err)
-        dumpMap(settings)
+        if err != nil {
+            t.Fatalf("failed to stats settings %s: %v", addr, err)
+        } else if jsonStr, err := json.Marshal(settings); err == nil {
+            t.Logf(string(jsonStr))
+        }
     }
 
     // Stats items
