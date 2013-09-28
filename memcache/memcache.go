@@ -26,6 +26,7 @@ import (
     "io/ioutil"
     "net"
 
+    "reflect"
     "strconv"
     "strings"
     "sync"
@@ -159,6 +160,96 @@ type Item struct {
 
     // Compare and swap ID.
     casid uint64
+}
+
+// GeneralStats is a struct to represent statistics info retrieve from server.
+// https://github.com/memcached/memcached/blob/master/doc/protocol.txt#L424
+type GeneralStats struct {
+    Pid uint32
+    Uptime uint32
+    Time uint32
+    Version string
+    PointerSize uint32
+    RusageUser float64
+    RusageSystem float64
+    CurrItems uint32
+    TotalItems uint32
+    Bytes uint64
+    CurrConnections uint32
+    TotalConnections uint32
+    ConnectionStructures uint32
+    ReservedFds uint32
+    CmdGet uint64
+    CmdSet uint64
+    CmdFlush uint64
+    CmdTouch uint64
+    GetHits uint64
+    GetMisses uint64
+    DeleteMisses uint64
+    DeleteHits uint64
+    IncrMisses uint64
+    IncrHits uint64
+    DecrMisses uint64
+    DecrHits uint64
+    CasMisses uint64
+    CasHits uint64
+    CasBadval uint64
+    TouchHits uint64
+    TouchMisses uint64
+    AuthCmds uint64
+    AuthErrors uint64
+    Evictions uint64
+    Reclaimed uint64
+    BytesRead uint64
+    BytesWritten uint64
+    LimitMaxbytes uint32
+    Threads uint32
+    ConnYields uint64
+    HashPowerLevel uint32
+    HashBytes uint64
+    HashIsExpanding bool
+    ExpiredUnfetched uint64
+    EvictedUnfetched uint64
+    SlabReassignRunning bool
+    SlabsMoved uint64
+}
+
+// Convert snake case phrase(snake_case) to camel case(SnakeCase).
+func snake2Camel(phrase string) string {
+    words := strings.Split(phrase, "_")
+    for i := range words {
+        words[i] = strings.Title(words[i])
+    }
+    return strings.Join(words, "")
+}
+
+func generalStatsFromMap(keyMap map[string][]byte) (*GeneralStats, error) {
+    generalStats := &GeneralStats{}
+    reflectValue := reflect.ValueOf(generalStats).Elem()
+    for key, value := range keyMap {
+        reflectField := reflectValue.FieldByName(snake2Camel(key))
+        switch reflectField.Kind() {
+        case reflect.Uint32:
+            if i, err := strconv.ParseUint(string(value), 10, 32); err == nil {
+                reflectField.SetUint(i)
+            }
+        case reflect.Uint64:
+            if i, err := strconv.ParseUint(string(value), 10, 64); err == nil {
+                reflectField.SetUint(i)
+            }
+        case reflect.Float64:
+            if i, err := strconv.ParseFloat(string(value), 64); err == nil {
+                reflectField.SetFloat(i)
+            }
+        case reflect.Bool:
+            if i, err := strconv.ParseBool(string(value)); err == nil {
+                reflectField.SetBool(i)
+            }
+        case reflect.String:
+            reflectField.SetString(string(value))
+        }
+    }
+    return generalStats, nil
 }
 
 // conn is a connection to a server.
@@ -630,7 +721,7 @@ func parseStatsResponse(r *bufio.Reader, keyMap map[string][]byte) error {
 }
 
 // Retrieve general-purpose statistics and settings.
-func (c *Client) Stats(addr net.Addr) (map[string][]byte, error) {
+func (c *Client) Stats(addr net.Addr) (*GeneralStats, error) {
     keyMap := make(map[string][]byte)
     parseRespone := func(r *bufio.Reader) error {
         if err := parseStatsResponse(r, keyMap); err != nil {
@@ -643,7 +734,8 @@ func (c *Client) Stats(addr net.Addr) (map[string][]byte, error) {
     if err != nil {
         return nil, err
     }
-    return keyMap, err
+
+    return generalStatsFromMap(keyMap)
 }
 
 // Retrieve settings details of memcached.

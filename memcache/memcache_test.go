@@ -25,6 +25,7 @@ import (
     "strings"
     "testing"
     "time"
+    "encoding/json"
 )
 
 const testServer = "localhost:11211"
@@ -171,8 +172,11 @@ func testWithClient(t *testing.T, c *Client) {
     // Stats
     for _, addr := range addrs {
         stats, err := c.Stats(addr)
-        checkErr(err, "failed to stats %s: %v", addr, err)
-        dumpMap(stats)
+        if err != nil {
+            t.Fatalf("failed to stats %s: %v", addr, err)
+        } else if jsonStr, err := json.Marshal(stats); err == nil {
+            t.Logf(string(jsonStr))
+        }
     }
 
     // Stats settings
