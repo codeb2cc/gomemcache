@@ -63,6 +63,10 @@ var (
 
     // ErrNoServers is returned when no servers are configured or available.
     ErrNoServers = errors.New("memcache: no servers configured or available")
+
+    // ErrInvalidStatsKey is returned when trying to set key not defined in the
+    // GeneralStats/SettingsStats/ItemStats/SlabStats struct.
+    ErrInvalidStatsKey = errors.New("memcache: try to set invalid key in status structs")
 )
 
 // DefaultTimeout is the default socket read/write timeout.
@@ -223,33 +227,40 @@ func snake2Camel(phrase string) string {
     return strings.Join(words, "")
 }
 
-func generalStatsFromMap(keyMap map[string][]byte) (*GeneralStats, error) {
-    generalStats := &GeneralStats{}
-    reflectValue := reflect.ValueOf(generalStats).Elem()
-    for key, value := range keyMap {
-        reflectField := reflectValue.FieldByName(snake2Camel(key))
-        switch reflectField.Kind() {
-        case reflect.Uint32:
-            if i, err := strconv.ParseUint(string(value), 10, 32); err == nil {
-                reflectField.SetUint(i)
-            }
-        case reflect.Uint64:
-            if i, err := strconv.ParseUint(string(value), 10, 64); err == nil {
-                reflectField.SetUint(i)
-            }
-        case reflect.Float64:
-            if i, err := strconv.ParseFloat(string(value), 64); err == nil {
-                reflectField.SetFloat(i)
-            }
-        case reflect.Bool:
-            if i, err := strconv.ParseBool(string(value)); err == nil {
-                reflectField.SetBool(i)
-            }
-        case reflect.String:
-            reflectField.SetString(string(value))
+func (s *GeneralStats) Set(key string, value []byte) error {
+    reflectValue := reflect.ValueOf(s).Elem()
+    reflectField := reflectValue.FieldByName(snake2Camel(key))
+    switch reflectField.Kind() {
+    case reflect.Uint32:
+        i, err := strconv.ParseUint(string(value), 10, 32)
+        if err != nil {
+            return err
         }
+        reflectField.SetUint(i)
+    case reflect.Uint64:
+        i, err := strconv.ParseUint(string(value), 10, 64)
+        if err != nil {
+            return err
+        }
+        reflectField.SetUint(i)
+    case reflect.Float64:
+        i, err := strconv.ParseFloat(string(value), 64)
+        if err != nil {
+            return err
+        }
+        reflectField.SetFloat(i)
+    case reflect.Bool:
+        i, err := strconv.ParseBool(string(value))
+        if err != nil {
+            return err
+        }
+        reflectField.SetBool(i)
+    case reflect.String:
+        reflectField.SetString(string(value))
+    default:
+        return ErrInvalidStatsKey
     }
-    return generalStats, nil
+    return nil
 }
 
 // SettingsStats is the struct type to represent settings of memcached.
@@ -282,51 +293,60 @@ type SettingsStats struct {
     SlabAutomove bool
 }
 
-func settingsStatsFromMap(keyMap map[string][]byte) (*SettingsStats, error) {
-    settingsStats := &SettingsStats{}
-    reflectValue := reflect.ValueOf(settingsStats).Elem()
-    for key, value := range keyMap {
-        reflectField := reflectValue.FieldByName(snake2Camel(key))
-        switch reflectField.Kind() {
-        case reflect.Uint8:
-            // Type of byte
-            reflectField.SetUint(uint64(value[0]))
-        case reflect.Uint32:
-            if i, err := strconv.ParseUint(string(value), 10, 32); err == nil {
-                reflectField.SetUint(i)
-            }
-        case reflect.Uint64:
-            if i, err := strconv.ParseUint(string(value), 10, 64); err == nil {
-                reflectField.SetUint(i)
-            }
-        case reflect.Int32:
-            if i, err := strconv.ParseInt(string(value), 10, 32); err == nil {
-                reflectField.SetInt(i)
-            }
-        case reflect.Float64:
-            if i, err := strconv.ParseFloat(string(value), 64); err == nil {
-                reflectField.SetFloat(i)
-            }
-        case reflect.Bool:
-            switch string(value) {
-            case "yes", "on":
-                reflectField.SetBool(true)
-            case "no", "off":
-                reflectField.SetBool(false)
-            default:
-                if i, err := strconv.ParseBool(string(value)); err == nil {
-                    reflectField.SetBool(i)
-                }
-            }
-        case reflect.String:
-            if bytes.Equal(value, []byte("NULL")) {
-                reflectField.SetString("")
-            } else {
-                reflectField.SetString(string(value))
-            }
+func (s *SettingsStats) Set(key string, value []byte) error {
+    reflectValue := reflect.ValueOf(s).Elem()
+    reflectField := reflectValue.FieldByName(snake2Camel(key))
+    switch reflectField.Kind() {
+    case reflect.Uint8:
+        // Type of byte
+        reflectField.SetUint(uint64(value[0]))
+    case reflect.Uint32:
+        i, err := strconv.ParseUint(string(value), 10, 32)
+        if err != nil {
+            return err
         }
+        reflectField.SetUint(i)
+    case reflect.Uint64:
+        i, err := strconv.ParseUint(string(value), 10, 64)
+        if err != nil {
+            return err
+        }
+        reflectField.SetUint(i)
+    case reflect.Int32:
+        i, err := strconv.ParseInt(string(value), 10, 32)
+        if err != nil {
+            return err
+        }
+        reflectField.SetInt(i)
+    case reflect.Float64:
+        i, err := strconv.ParseFloat(string(value), 64)
+        if err != nil {
+            return err
+        }
+        reflectField.SetFloat(i)
+    case reflect.Bool:
+        switch string(value) {
+        case "yes", "on":
+            reflectField.SetBool(true)
+        case "no", "off":
+            reflectField.SetBool(false)
+        default:
+            i, err := strconv.ParseBool(string(value))
+            if err != nil {
+                return err
+            }
+            reflectField.SetBool(i)
+        }
+    case reflect.String:
+        if bytes.Equal(value, []byte("NULL")) {
+            reflectField.SetString("")
+        } else {
+            reflectField.SetString(string(value))
+        }
+    default:
+        return ErrInvalidStatsKey
     }
-    return settingsStats, nil
+    return nil
 }
 
 // ItemStats is the struct type to represent information about item storage in
@@ -344,19 +364,20 @@ type ItemStats struct {
     EvictedUnfetched uint64
 }
 
-func itemStatsFromMap(keyMap map[string][]byte) (*ItemStats, error) {
-    itemStats := &ItemStats{}
-    reflectValue := reflect.ValueOf(itemStats).Elem()
-    for key, value := range keyMap {
-        reflectField := reflectValue.FieldByName(snake2Camel(key))
-        switch reflectField.Kind() {
-        case reflect.Uint64:
-            if i, err := strconv.ParseUint(string(value), 10, 64); err == nil {
-                reflectField.SetUint(i)
-            }
+func (s *ItemStats) Set(key string, value []byte) error {
+    reflectValue := reflect.ValueOf(s).Elem()
+    reflectField := reflectValue.FieldByName(snake2Camel(key))
+    switch reflectField.Kind() {
+    case reflect.Uint64:
+        i, err := strconv.ParseUint(string(value), 10, 64)
+        if err != nil {
+            return err
         }
+        reflectField.SetUint(i)
+    default:
+        return ErrInvalidStatsKey
     }
-    return itemStats, nil
+    return nil
 }
 
 // SlabStats is the struct type to represent information about the slab class.
@@ -381,19 +402,20 @@ type SlabStats struct {
     TotalMalloced uint64
 }
 
-func slabStatsFromMap(keyMap map[string][]byte) (*SlabStats, error) {
-    slabStats := &SlabStats{}
-    reflectValue := reflect.ValueOf(slabStats).Elem()
-    for key, value := range keyMap {
-        reflectField := reflectValue.FieldByName(snake2Camel(key))
-        switch reflectField.Kind() {
-        case reflect.Uint64:
-            if i, err := strconv.ParseUint(string(value), 10, 64); err == nil {
-                reflectField.SetUint(i)
-            }
+func (s *SlabStats) Set(key string, value []byte) error {
+    reflectValue := reflect.ValueOf(s).Elem()
+    reflectField := reflectValue.FieldByName(snake2Camel(key))
+    switch reflectField.Kind() {
+    case reflect.Uint64:
+        i, err := strconv.ParseUint(string(value), 10, 64)
+        if err != nil {
+            return err
         }
+        reflectField.SetUint(i)
+    default:
+        return ErrInvalidStatsKey
     }
-    return slabStats, nil
+    return nil
 }
 
 // conn is a connection to a server.
@@ -843,8 +865,12 @@ func (c *Client) statsFromAddr(argument string, addr net.Addr, fn func(*bufio.Re
     })
 }
 
-func parseStatsResponse(r *bufio.Reader, keyMap map[string][]byte) error {
+func parseStatsResponse(r *bufio.Reader, stats *GeneralStats) (error) {
     pattern := "STAT %s %s\r\n"
+    var (
+        key string
+        value []byte
+    )
     for {
         line, err := r.ReadSlice('\n')
         if err != nil {
@@ -853,22 +879,24 @@ func parseStatsResponse(r *bufio.Reader, keyMap map[string][]byte) error {
         if bytes.Equal(line, resultEnd) {
             return nil
         }
-        var key string
-        var value []byte
+
         n, err := fmt.Sscanf(string(line), pattern, &key, &value)
         if err != nil || n != 2 {
             return fmt.Errorf("memcache: unexpected line in stats response: %q", line)
         }
-        keyMap[key] = value
+        err = stats.Set(key, value)
+        if err != nil && err != ErrInvalidStatsKey {
+            return err
+        }
     }
     panic("unreached")
 }
 
 // Retrieve general-purpose statistics and settings.
 func (c *Client) Stats(addr net.Addr) (*GeneralStats, error) {
-    keyMap := make(map[string][]byte)
+    generalStats := new(GeneralStats)
     parseRespone := func(r *bufio.Reader) error {
-        if err := parseStatsResponse(r, keyMap); err != nil {
+        if err := parseStatsResponse(r, generalStats); err != nil {
             return err
         }
         return nil
@@ -879,14 +907,41 @@ func (c *Client) Stats(addr net.Addr) (*GeneralStats, error) {
         return nil, err
     }
 
-    return generalStatsFromMap(keyMap)
+    return generalStats, nil
+}
+
+func parseStatsSettingsResponse(r *bufio.Reader, stats *SettingsStats) (error) {
+    pattern := "STAT %s %s\r\n"
+    var (
+        key string
+        value []byte
+    )
+    for {
+        line, err := r.ReadSlice('\n')
+        if err != nil {
+            return err
+        }
+        if bytes.Equal(line, resultEnd) {
+            return nil
+        }
+
+        n, err := fmt.Sscanf(string(line), pattern, &key, &value)
+        if err != nil || n != 2 {
+            return fmt.Errorf("memcache: unexpected line in stats response: %q", line)
+        }
+        err = stats.Set(key, value)
+        if err != nil && err != ErrInvalidStatsKey {
+            return err
+        }
+    }
+    panic("unreached")
 }
 
 // Retrieve settings details of memcached.
 func (c *Client) StatsSettings(addr net.Addr) (*SettingsStats, error) {
-    keyMap := make(map[string][]byte)
+    settingsStats := new(SettingsStats)
     parseRespone := func(r *bufio.Reader) error {
-        if err := parseStatsResponse(r, keyMap); err != nil {
+        if err := parseStatsSettingsResponse(r, settingsStats); err != nil {
             return err
         }
         return nil
@@ -897,11 +952,16 @@ func (c *Client) StatsSettings(addr net.Addr) (*SettingsStats, error) {
         return nil, err
     }
 
-    return settingsStatsFromMap(keyMap)
+    return settingsStats, nil
 }
 
-func parseStatsItemsResponse(r *bufio.Reader, slabMap map[int]map[string][]byte) error {
+func parseStatsItemsResponse(r *bufio.Reader, slabMap map[int]*ItemStats) error {
     pattern := "STAT items:%d:%s %s\r\n"
+    var (
+        slabIndex int
+        key string
+        value []byte
+    )
     for {
         line, err := r.ReadSlice('\n')
         if err != nil {
@@ -910,9 +970,7 @@ func parseStatsItemsResponse(r *bufio.Reader, slabMap map[int]map[string][]byte)
         if bytes.Equal(line, resultEnd) {
             return nil
         }
-        var slabIndex int
-        var key string
-        var value []byte
+
         n, err := fmt.Sscanf(string(line), pattern, &slabIndex, &key, &value)
         if err != nil || n != 3 {
             return fmt.Errorf("memcache: unexpected line in stats items response: %q", line)
@@ -920,16 +978,19 @@ func parseStatsItemsResponse(r *bufio.Reader, slabMap map[int]map[string][]byte)
 
         _, ok := slabMap[slabIndex]
         if !ok {
-            slabMap[slabIndex] = make(map[string][]byte)
+            slabMap[slabIndex] = new(ItemStats)
         }
-        slabMap[slabIndex][key] = value
+        err = slabMap[slabIndex].Set(key, value)
+        if err != nil && err != ErrInvalidStatsKey {
+            return err
+        }
     }
     panic("unreached")
 }
 
 // Retrieve information about item storage per slab class.
-func (c *Client) StatsItems(addr net.Addr) (map[int]ItemStats, error) {
-    slabMap := make(map[int]map[string][]byte)
+func (c *Client) StatsItems(addr net.Addr) (map[int]*ItemStats, error) {
+    slabMap := make(map[int]*ItemStats)
     parseRespone := func(r *bufio.Reader) error {
         if err := parseStatsItemsResponse(r, slabMap); err != nil {
             return err
@@ -942,18 +1003,16 @@ func (c *Client) StatsItems(addr net.Addr) (map[int]ItemStats, error) {
         return nil, err
     }
 
-    itemStatsList := make(map[int]ItemStats)
-    for index, keyMap := range slabMap {
-        itemStats, err := itemStatsFromMap(keyMap)
-        if err == nil {
-            itemStatsList[index] = *itemStats
-        }
-    }
-    return itemStatsList, nil
+    return slabMap, nil
 }
 
-func parseStatsSlabsResponse(r *bufio.Reader, slabMap map[int]map[string][]byte) error {
+func parseStatsSlabsResponse(r *bufio.Reader, slabMap map[int]*SlabStats) error {
     pattern := "STAT %d:%s %s\r\n"
+    var (
+        slabIndex int
+        key string
+        value []byte
+    )
     for {
         line, err := r.ReadSlice('\n')
         if err != nil {
@@ -967,27 +1026,26 @@ func parseStatsSlabsResponse(r *bufio.Reader, slabMap map[int]map[string][]byte)
             continue
         }
 
-        var slabIndex int
-        var key string
-        var value []byte
         n, err := fmt.Sscanf(string(line), pattern, &slabIndex, &key, &value)
-
         if err != nil || n != 3 {
             return fmt.Errorf("memcache: unexpected line in stats slabs response: %q", line)
         }
 
         _, ok := slabMap[slabIndex]
         if !ok {
-            slabMap[slabIndex] = make(map[string][]byte)
+            slabMap[slabIndex] = new(SlabStats)
         }
-        slabMap[slabIndex][key] = value
+        err = slabMap[slabIndex].Set(key, value)
+        if err != nil && err != ErrInvalidStatsKey {
+            return err
+        }
     }
     panic("unreached")
 }
 
 // Retrieve slabs information.
-func (c *Client) StatsSlabs(addr net.Addr) (map[int]SlabStats, error) {
-    slabMap := make(map[int]map[string][]byte)
+func (c *Client) StatsSlabs(addr net.Addr) (map[int]*SlabStats, error) {
+    slabMap := make(map[int]*SlabStats)
     parseRespone := func(r *bufio.Reader) error {
         if err := parseStatsSlabsResponse(r, slabMap); err != nil {
             return err
@@ -1000,12 +1058,5 @@ func (c *Client) StatsSlabs(addr net.Addr) (map[int]SlabStats, error) {
         return nil, err
     }
 
-    slabStatsList := make(map[int]SlabStats)
-    for index, keyMap := range slabMap {
-        slabStats, err := slabStatsFromMap(keyMap)
-        if err == nil {
-            slabStatsList[index] = *slabStats
-        }
-    }
-    return slabStatsList, nil
+    return slabMap, nil
 }
