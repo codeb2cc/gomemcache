@@ -284,6 +284,8 @@ type SettingsStats struct {
     NumThreads int32
     StatKeyPrefix byte
     DetailEnabled bool
+    ReqsPerEvent int32
+    CasEnabled bool
     TcpBacklog int32
     AuthEnabledSasl bool
     ItemSizeMax uint64
