@@ -400,8 +400,6 @@ type SlabStats struct {
     FreeChunks uint64
     FreeChunksEnd uint64
     MemRequested uint64
-    ActiveSlabs uint64
-    TotalMalloced uint64
 }
 
 func (s *SlabStats) Set(key string, value []byte) error {
