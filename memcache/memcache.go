@@ -206,7 +206,7 @@ type GeneralStats struct {
     Reclaimed uint64
     BytesRead uint64
     BytesWritten uint64
-    LimitMaxbytes uint32
+    LimitMaxbytes uint64
     Threads uint32
     ConnYields uint64
     HashPowerLevel uint32
