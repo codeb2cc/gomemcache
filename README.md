@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/codeb2cc/gomemcache.png)](https://travis-ci.org/codeb2cc/gomemcache)
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/codeb2cc/gomemcache/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
 
 ## About
 
